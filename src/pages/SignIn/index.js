@@ -1,40 +1,55 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ImageBackground, Alert } from "react-native";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ImageBackground, Modal, TouchableWithoutFeedback } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import  {auth} from '../../../services/FirebaseConfig';
+import { auth } from '../../../services/FirebaseConfig';
 import { signInWithEmailAndPassword } from "firebase/auth";
-console.disableYellowBox = true;
 
-const Imagebg = './assets/REAL.png';
-
-export default function SignIn() {
+const SignIn = () => {
     const [hidePass, setHidePass] = useState(true);
-    const [nome, setNome] = useState('');
     const [email, setEmail] = useState('');
     const [senha, setSenha] = useState('');
+    const [modalVisible, setModalVisible] = useState(false);
+    const [modalTitle, setModalTitle] = useState('');
+    const [modalMessage, setModalMessage] = useState('');
     const navigation = useNavigation();
-  
-     
+
     function fazerLogin() {
+        if (email === '' || senha === '' || !validateEmail(email)) {
+            setModalTitle('Erro');
+            setModalMessage('Por favor, preencha todos os campos corretamente.');
+            setModalVisible(true);
+            return;
+        }
+
         signInWithEmailAndPassword(auth, email, senha)
         .then((userCredential)=>{
             const user = userCredential.user;
-            const nome = user.displayName;
             navigation.replace('Conteudo', { nome: user.displayName });
-            console.log(user);
         })
         .catch((erro) => {
             const erroCode = erro.code;
-            const erroMessage = erro.message;
-            alert(erroMessage);
-        })
-    }
+            if (erroCode === 'auth/wrong-password' || erroCode === 'auth/invalid-email') {
+                setModalTitle('Erro');
+                setModalMessage('Email ou senha incorretos. Por favor, tente novamente.');
+            } else {
+                setModalTitle('Erro');
+                setModalMessage('Erro ao fazer login. Por favor, tente novamente mais tarde.');
+            }
+            setModalVisible(true);
+        });
+}
+
+    const validateEmail = (email) => {
+        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return regex.test(email);
+    };
+
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={require('../../assets/REAL.png')}
-                style={styles.Imagebg}>
+            <ImageBackground 
+            source={require('../../assets/REAL.png')} 
+            style={styles.Imagebg}>
 
                 <View style={styles.containerHeader}>
                     <Text style={styles.message}>Bem-Vindo(a)</Text>
@@ -54,20 +69,20 @@ export default function SignIn() {
 
                     <Text style={styles.title}>Senha</Text>
                     <TextInput
-                        placeholder="Digite sua Senha..."
-                        style={styles.input}
-                        value={senha}
-                        onChangeText={setSenha}
-                        secureTextEntry={hidePass}
-                    />
+                            placeholder="Digite sua Senha..."
+                            style={styles.input}
+                            value={senha}
+                            onChangeText={setSenha}
+                            secureTextEntry={hidePass}
+                        />
 
-                    <TouchableOpacity style={styles.icon} onPress={() => setHidePass(!hidePass)}>
+                         <TouchableOpacity style={styles.icon} onPress={() => setHidePass(!hidePass)}>
                         {hidePass ?
                             <Ionicons style={styles.icon} name="eye" color="#FFF" size={25} />
                             :
                             <Ionicons style={styles.icon} name="eye-off" color="#FFF" size={25} />}
                     </TouchableOpacity>
-
+                  
                     <TouchableOpacity style={styles.button} onPress={fazerLogin}>
                         <Text style={styles.buttonText}>Acessar</Text>
                     </TouchableOpacity>
@@ -79,17 +94,32 @@ export default function SignIn() {
                     <TouchableOpacity style={styles.buttonRegister} onPress={() => navigation.navigate('Cadastro')}>
                         <Text style={styles.RegisterText}>Não possui conta? Cadastre-se gratuitamente</Text>
                     </TouchableOpacity>
-                </View>
+                    </View>
+             </ImageBackground>
 
-            </ImageBackground>
+            {/* Modal de Erro */}
+            <Modal animationType="fade" transparent={true} visible={modalVisible} onRequestClose={() => {setModalVisible(false)}}>
+                <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>{modalTitle}</Text>
+                            <Text style={styles.modalMessage}>{modalMessage}</Text>
+                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalButton}>
+                                <Text style={styles.buttonText}>Fechar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    
+    container: {
+        flex: 1,
+    },
     Imagebg: {
-        
         width: "100%",
         height: "100%"
     },
@@ -120,14 +150,23 @@ const styles = StyleSheet.create({
         fontSize: 20,
         marginTop: 20,
     },
-    icon: {
-        alignItems: 'center',
-    },
     input: {
         borderBottomWidth: 1,
         height: 40,
         marginBottom: 12,
         fontSize: 18,
+    },
+    passwordInput: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        height: 40,
+        marginBottom: 12,
+        fontSize: 18,
+    },
+    icon: {
+        marginLeft: 10,
+        alignItems: 'center',
     },
     button: {
         backgroundColor: '#F98404',
@@ -172,4 +211,33 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
+    modalContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    modalContent: {
+        backgroundColor: '#FFF',
+        borderRadius: 10,
+        padding: 20,
+        alignItems: 'center',
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 10,
+    },
+    modalMessage: {
+        fontSize: 16,
+        marginBottom: 20,
+    },
+    modalButton: {
+        backgroundColor: '#F98404',
+        borderRadius: 5,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+    },
 });
+
+export default SignIn;
